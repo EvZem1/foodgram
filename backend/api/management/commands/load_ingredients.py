@@ -29,7 +29,8 @@ class Command(BaseCommand):
                         count += 1
 
                 self.stdout.write(self.style.SUCCESS(
-                    f'Загрузка завершена. Добавлено {count} новых ингредиентов.'
+                    f'Загрузка завершена. '
+                    f'Добавлено {count} новых ингредиентов.'
                 ))
         except FileNotFoundError:
             self.stdout.write(self.style.ERROR(
