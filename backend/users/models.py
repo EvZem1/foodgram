@@ -3,8 +3,6 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """Кастомная модель пользователя."""
-
     email = models.EmailField(
         'Адрес электронной почты',
         unique=True,
@@ -29,4 +27,3 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
-    
