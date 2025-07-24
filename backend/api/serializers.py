@@ -5,9 +5,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from .models import (Tag, Ingredient, Recipe, RecipeIngredient,
-                     Favorite, ShoppingCart, MIN_COOKING_TIME,
-                     MAX_COOKING_TIME, MIN_INGREDIENT_AMOUNT,
-                     MAX_INGREDIENT_AMOUNT)
+                     MIN_COOKING_TIME, MAX_COOKING_TIME,
+                     MIN_INGREDIENT_AMOUNT, MAX_INGREDIENT_AMOUNT)
 
 User = get_user_model()
 
