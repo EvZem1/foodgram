@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import (Tag, Ingredient, Recipe, Favorite, ShoppingCart,
-                     Subscription, RecipeIngredient) # <-- ДОБАВЛЕН ИМПОРТ
+                     Subscription, RecipeIngredient)
 from .serializers import (UserSerializer, TagSerializer, IngredientSerializer,
                           RecipeReadSerializer, RecipeWriteSerializer,
                           RecipeMinifiedSerializer)
