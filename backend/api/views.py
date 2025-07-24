@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework import viewsets, status
@@ -35,8 +36,7 @@ class CustomUserViewSet(DjoserUserViewSet):
             )
 
         if request.method == 'POST':
-            if Subscription.objects.filter(user=request.user,
-                                           author=author).exists():
+            if request.user.follower.filter(author=author).exists():
                 return Response(
                     {'errors': 'Вы уже подписаны на этого автора'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -45,8 +45,7 @@ class CustomUserViewSet(DjoserUserViewSet):
             serializer = self.get_serializer(author)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        subscription = Subscription.objects.filter(user=request.user,
-                                                   author=author)
+        subscription = request.user.follower.filter(author=author)
         if subscription.exists():
             subscription.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -95,8 +94,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def favorite(self, request, pk=None):
         recipe = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
-            if Favorite.objects.filter(user=request.user,
-                                       recipe=recipe).exists():
+            if request.user.favorites.filter(recipe=recipe).exists():
                 return Response(
                     {'errors': 'Рецепт уже в избранном'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -105,7 +103,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             serializer = RecipeMinifiedSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        favorite = Favorite.objects.filter(user=request.user, recipe=recipe)
+        favorite = request.user.favorites.filter(recipe=recipe)
         if favorite.exists():
             favorite.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -121,8 +119,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def shopping_cart(self, request, pk=None):
         recipe = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
-            if ShoppingCart.objects.filter(user=request.user,
-                                           recipe=recipe).exists():
+            if request.user.shopping_cart.filter(recipe=recipe).exists():
                 return Response(
                     {'errors': 'Рецепт уже в списке покупок'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -131,8 +128,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             serializer = RecipeMinifiedSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        cart_item = ShoppingCart.objects.filter(user=request.user,
-                                                recipe=recipe)
+        cart_item = request.user.shopping_cart.filter(recipe=recipe)
         if cart_item.exists():
             cart_item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -146,28 +142,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAuthenticated]
     )
     def download_shopping_cart(self, request):
-        user = request.user
-        shopping_cart = user.shopping_cart.all()
-        ingredients = {}
-
-        for item in shopping_cart:
-            recipe_ingredients = item.recipe.recipeingredient_set.all()
-            for ri in recipe_ingredients:
-                name = ri.ingredient.name
-                measurement_unit = ri.ingredient.measurement_unit
-                amount = ri.amount
-                if name in ingredients:
-                    ingredients[name]['amount'] += amount
-                else:
-                    ingredients[name] = {
-                        'amount': amount,
-                        'measurement_unit': measurement_unit
-                    }
+        ingredients = (
+            RecipeIngredient.objects.filter(
+                recipe__in_shopping_cart__user=request.user
+            )
+            .values('ingredient__name', 'ingredient__measurement_unit')
+            .annotate(total_amount=Sum('amount'))
+            .order_by('ingredient__name')
+        )
 
         shopping_list_text = "Список покупок:\n\n"
-        for name, data in ingredients.items():
+        for item in ingredients:
             shopping_list_text += (
-                f"- {name} ({data['measurement_unit']}) — {data['amount']}\n"
+                f"- {item['ingredient__name']} "
+                f"({item['ingredient__measurement_unit']}) — "
+                f"{item['total_amount']}\n"
             )
 
         response = HttpResponse(shopping_list_text, content_type='text/plain')

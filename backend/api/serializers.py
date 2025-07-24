@@ -4,8 +4,10 @@ from django.core.files.base import ContentFile
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import (Tag, Ingredient, Subscription, Recipe, RecipeIngredient,
-                     Favorite, ShoppingCart)
+from .models import (Tag, Ingredient, Recipe, RecipeIngredient,
+                     Favorite, ShoppingCart, MIN_COOKING_TIME,
+                     MAX_COOKING_TIME, MIN_INGREDIENT_AMOUNT,
+                     MAX_INGREDIENT_AMOUNT)
 
 User = get_user_model()
 
@@ -36,8 +38,7 @@ class UserSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request is None or request.user.is_anonymous:
             return False
-        return Subscription.objects.filter(
-            user=request.user, author=obj).exists()
+        return request.user.follower.filter(author=obj).exists()
 
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
@@ -71,15 +72,14 @@ class RecipeReadSerializer(serializers.ModelSerializer):
     def get_is_favorited(self, obj):
         request = self.context.get('request')
         if not request or request.user.is_anonymous:
-            return False
-        return Favorite.objects.filter(user=request.user, recipe=obj).exists()
+            return request.user.favorites.filter(recipe=obj).exists()
+        return False
 
     def get_is_in_shopping_cart(self, obj):
         request = self.context.get('request')
         if not request or request.user.is_anonymous:
-            return False
-        return ShoppingCart.objects.filter(
-            user=request.user, recipe=obj).exists()
+            return request.user.shopping_cart.filter(recipe=obj).exists()
+        return False
 
 
 class Base64ImageField(serializers.ImageField):
@@ -93,7 +93,9 @@ class Base64ImageField(serializers.ImageField):
 
 class RecipeIngredientWriteSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
-    amount = serializers.IntegerField()
+    amount = serializers.IntegerField(
+        min_value=MIN_INGREDIENT_AMOUNT, max_value=MAX_INGREDIENT_AMOUNT
+    )
 
     class Meta:
         model = RecipeIngredient
@@ -106,6 +108,9 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     )
     ingredients = RecipeIngredientWriteSerializer(many=True)
     image = Base64ImageField()
+    cooking_time = serializers.IntegerField(
+        min_value=MIN_COOKING_TIME, max_value=MAX_COOKING_TIME
+    )
 
     class Meta:
         model = Recipe
